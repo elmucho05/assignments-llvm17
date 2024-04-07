@@ -92,31 +92,31 @@ bool advancedStrengthReduction(Instruction &I) {
 }
 
 
-bool multiInstOpt(Instruction &I, Instruction::BinaryOps toDoOperation) {
+bool multiInstruction(Instruction &I, Instruction::BinaryOps toDoOperation) {
   int pos = 0;
-  for (auto operandUser = I.op_begin(); operandUser != I.op_end(); operandUser++, pos++) {
-    ConstantInt *CUser = dyn_cast<ConstantInt>(operandUser); //%a = add i32 %b, 1
+  for (auto opUser = I.op_begin(); opUser != I.op_end(); opUser++, pos++) {
+    
+    ConstantInt *costante = dyn_cast<ConstantInt>(opUser); //%a = add i32 %b, 1
+    if (costante) {
 
-    if (CUser) {
-
-      APInt valueToFind = CUser->getValue();
+      APInt valueToFind = costante->getValue();
       Instruction::BinaryOps opToFind =
           toDoOperation == Instruction::Sub ? Instruction::Add : Instruction::Sub;
 
       for (auto iter = I.user_begin(); iter != I.user_end(); ++iter) {
 
-        User *instUser = *iter;
-        BinaryOperator *opUsee = dyn_cast<BinaryOperator>(instUser); //%c = sub i32 %a, 1
+        User *userofInstr = *iter;
+        BinaryOperator *opUsee = dyn_cast<BinaryOperator>(userofInstr); //%c = sub i32 %a, 1
 
         if (not opUsee)
           continue;
 
-        for (auto operandUsee = instUser->op_begin(); operandUsee != instUser->op_end(); operandUsee++) 
+        for (auto operandUsee = userofInstr->op_begin(); operandUsee != userofInstr->op_end(); operandUsee++) 
         {
-          ConstantInt *CUsee = dyn_cast<ConstantInt>(operandUsee);
-          if (CUsee && opUsee->getOpcode() == opToFind && CUsee->getValue() == valueToFind){
-            outs() << "Trovata Multi Instruction Optimization\n  " << I << " e " << *instUser << "\n ";
-            instUser->replaceAllUsesWith(I.getOperand(!pos));
+          ConstantInt *constantUsee = dyn_cast<ConstantInt>(operandUsee);
+          if (constantUsee && opUsee->getOpcode() == opToFind && constantUsee->getValue() == valueToFind){
+            outs() << "Trovata Multi Instruction Optimization\n  " << I << " e " << *userofInstr << "\n ";
+            userofInstr->replaceAllUsesWith(I.getOperand(!pos));
             return true;
           }
         }
@@ -143,11 +143,11 @@ bool runOnBasicBlock(BasicBlock &B) {
       break;
     case BinaryOperator::Add:
       if (!algebraicIdentity(inst, Instruction::Add))
-        multiInstOpt(inst, Instruction::Add);
+        multiInstruction(inst, Instruction::Add);
       break;
 
     case BinaryOperator::Sub:
-      multiInstOpt(inst, Instruction::Sub);
+      multiInstruction(inst, Instruction::Sub);
       break;
     case (BinaryOperator::SDiv):
       strengthReduction(inst, Instruction::SDiv);
