@@ -1,0 +1,272 @@
+\documentclass{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{etoolbox}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+
+
+\title{Assignment 2}
+\author{Algert Mucaj, Simone Garzarelli}
+\date{April 2024}
+
+\begin{document}
+	\maketitle
+\begin{section}{Very Busy Expressions}
+	
+	% Define a larger width for the longtable
+%	\setlength{\LTcapwidth}{\textwidth} % Set the caption width to text width
+	%	\setlength{\LTleft}{0pt} % Left-align the longtable
+
+\large % Set overall font size to large
+\renewcommand{\arraystretch}{1.5} % Increase row height for better readability
+
+	
+\begin{longtable}{| c | c |}
+	\hline
+	\multicolumn{2}{|c|}{\textbf{Very Busy Expressions}} \\
+	\hline
+	Domain & Insiemi di espressioni \\
+	\hline
+	Direction & Backward \\
+	  & IN[b] = $f_b (OUT[b])$ \\
+	  & OUT[b] = \verb*|^| IN[successori(b)] \\
+	\hline
+	Transfer function &  $f_b(x) = Gen_b \cup (x - Kills_b)$\\
+	\hline
+	Meet Operation & $\cap$ \\
+	\hline
+	Boundary Condition & IN[exit] = $\emptyset$ \\
+	\hline
+	Initial interior points & In[b] = $\mu$ \\
+	\hline
+	% Add more rows as needed
+\end{longtable}
+
+\begin{subsection}{Scelte implementative}
+	Un’espressione è \textbf{very busy} in un
+	punto \textit{p} se, indipendentemente
+	dal percorso preso da \textit{p},
+	l’espressione viene usata prima
+	che uno dei suoi operandi venga
+	definito. \\ \\
+	Trattandosi di insiemi di espressioni, possiamo intuire che la direzione di scorrimento è come quella di quando trattiamo la liveness analysis di una variabile.
+	\\\\
+	Utilizzando una direzione "Backward", l'analisi delle "Very Busy Expressions" determina l'insieme di espressioni che saranno "molto usate" prima di ogni assegnazione o modifica di un operando. Questo tipo di analisi aiuta a precalcolare l'uso delle espressioni all'indietro nel flusso di esecuzione del programma, partendo dai punti di uscita (exit) fino al punto di ingresso (entry).
+	\\ \\
+	Il bit vector, di conseguenza, sarà costituito dalle espressioni $b-a$ e $a-b$.\\
+	
+	\textbf{Come leggere la tabella} delle iterazioni:
+	Ovunque si trovi nella tabella la coppia (1,1), significa che in quella determinata configurazione, i bit corrispondenti alle espressioni $b-a$ e $a-b$, sono alti.
+
+%TODO
+% aggiungere la tabella di gen e kills.
+\pagebreak
+
+\begin{longtable}{| c | c | c |}
+	\hline
+	\textbf{BB} & \textbf{Gen} & \textbf{Kill}\\
+	\hline
+	1 & $\emptyset$ & $\emptyset$\\
+	2 & $\emptyset$&$\emptyset$\\
+	3 & b-a &$\emptyset$\\
+	4 & a-b&$\emptyset$ \\
+	5 & b-a&$\emptyset$\\
+	6 & $\emptyset$& b-a,a-b\\
+	7 & a-b&$\emptyset$ \\
+	8 & $\emptyset$&$\emptyset$\\
+	\hline
+	\caption{Tabella Gen e Kill}\\
+\end{longtable}
+
+\end{subsection}
+\begin{subsection}{Iterazioni dell'algoritmo}
+	
+	\begin{longtable}{| c | c | c | c | c | c | c |}
+		\hline
+		\textbf{BB} & \multicolumn{2}{|c|}{\textbf{Iterazione 1}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 2}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 3}} \\
+		\hline
+		\space & in & out & in & out & in & out \\
+		\hline
+		BB1 & 1,1 & 1,1 & 1,0 & 1,0 & 1,0 & 1,0 \\
+		\hline
+		BB2 & 1,1 & 1,1 & 1,0 & 1,0 & 1,0 & 1,0 \\
+		\hline
+		BB3 & 1,1 & 1,1 & 1,1 & 0,1 & 1,1 & 0,1 \\
+		\hline
+		BB4 & 1,1 & $\emptyset$ & 0,1 & $\emptyset$ & 0,1 & $\emptyset$ \\
+		\hline
+		BB5 & 1,1 & 1,1 & 1,0 & 0,0 & 1,0 & 0,0 \\
+		\hline
+		BB6 & 1,1 & 1,1 & 0,0 & 0,1 & 0,0 & 0,1 \\
+		\hline
+		BB7 & 1,1 & $\emptyset$ & 0,1 & $\emptyset$ & 0,1 & $\emptyset$ \\
+		\hline
+		BB8 & $\emptyset$ & 0,0 & $\emptyset$ & $\emptyset$ & $\emptyset$ & $\emptyset$ \\
+		\hline
+	\end{longtable}
+\end{subsection}
+\end{section}
+\pagebreak
+\begin{section}{Dominator Analysis}
+	In un CFG diciamo che un nodo \textit{X} \textbf{domina} un altro	nodo \textit{Y} se il nodo \textit{X}	\textit{appare} \textit{in ogni percorso	}del grafo che porta dal 	blocco ENTRY al blocco \textit{Y}
+	\begin{itemize}
+		\item Annotiamo ogni basic block Bi con un insieme DOM[Bi]
+			\subitem $B_i \in DOM[B_j]$ se e solo se Bi domina Bj
+		\item Per definizione, un nodo \textit{domina} \textbf{se stesso}
+	\end{itemize}
+\begin{longtable}{| c | c |}
+	\hline
+	\multicolumn{2}{|c|}{\textbf{Dominator Analysis}} \\
+	\hline
+	Domain & Insiemi di Basic Block\\
+	\hline
+	Direction & Forward \\
+	& OUT[b] = $f_b (IN[b])$ \\
+	& IN[b] = \verb*|^| OUT[predecessori(b)] \\
+	\hline
+	Transfer function &  $f_b(x) = B \cup x$\\
+	\hline
+	Meet Operation & $\cap$ \\
+	\hline
+	Boundary Condition & OUT[entry] = entry \\
+	\hline
+	Initial interior points & OUT[b$_i$] = $\mu$ \\
+	\hline
+\end{longtable}
+Non troviamo funzioni Gen e Kill poiché stiamo lavorando direttamente con dei basic block. L'intersezione è l'operazione che rispecchia meglio questa proprietà di inclusione. Quando calcoliamo l'OUT di un basic block \textit{b}, consideriamo l'intersezione degli IN dei suoi predecessori. Questo significa che l'OUT[b] deve contenere solo quei blocchi che sono dominatori comuni di tutti i predecessori di b.
+\newline\newline
+L'intersezione riduce l'insieme di possibili dominatori, mantenendo solo quei blocchi che sono dominatori comuni a tutti i percorsi di ingresso nel blocco.
+
+\begin{longtable}{| c | c | c | c | c | c | c |}
+	\hline
+	\textbf{BB} & \multicolumn{2}{|c|}{\textbf{Iterazione 1}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 2}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 3}} \\
+	\hline
+	\space & in & out & in & out & in & out \\
+	\hline
+	A & A & A & A & A & A & A\\
+	\hline
+	B & A & B & A & AB & A & AB \\
+	\hline
+	C & AC & C & A & AC & A & AC \\
+	\hline
+	D & AC & D & AC & ACD & AC & ACD \\
+	\hline
+	E & AC & E & AC & ACE & AC & ACE \\
+	\hline
+	F & $\emptyset$ & F & AC & ACF & AC & ACF \\
+	\hline
+	G & $\emptyset$ & G & A & AG & A & AG \\
+	\hline
+\end{longtable}
+%B cup x , B(blocco stesso) unito con In 
+\end{section}
+\pagebreak
+\begin{section}{Constant Propagation}
+	L’obiettivo della constant propagation è quello di determinare in quali punti del programma le variabili hanno un valore costante. 
+	\\
+	L’informazione da calcolare per ogni nodo n del CFG è un insieme di coppie del tipo \textit{(variabile, valore costante)}. Se abbiamo la coppia (x, c) al nodo n, significa che x è garantito avere il valore c ogni volta che n viene raggiunto
+	durante l’esecuzione del programma.
+	
+	
+\begin{longtable}{| c | c |}
+	\hline
+	\multicolumn{2}{|c|}{\textbf{Constant Propagation}} \\
+	\hline
+	Domain & Insiemi di coppie \textit{(variabile, costante)} \\
+	\hline
+	Direction & Forward \\
+	& OUT[b] = $f_b (IN[b])$ \\
+	& IN[b] = \verb*|^| OUT[predecessori(b)] \\
+	\hline
+	Transfer function &  $f_b(x) = Gen_b \cup (x - Kills_b)$\\
+	\hline
+	Meet Operation & $\cap$ \\
+	\hline
+	Boundary Condition & OUT[entry] = $\emptyset$ \\
+	\hline
+	Initial interior points & OUT[$b_i$] = $\mu$ \\
+	\hline
+	% Add more rows as needed
+\end{longtable}
+
+	
+\begin{longtable}{| c | c | c |}
+	\hline
+	\textbf{BB} & \textbf{Gen} & \textbf{Kill}\\
+	\hline
+	entry & $\emptyset$ & $\emptyset$\\
+	1 & (k,2) & $\emptyset$\\
+	2 & $\emptyset$&$\emptyset$\\
+	3 & (a,k+2) & $\emptyset$\\
+	4 & (x,5)&$\emptyset$ \\
+	5 & (a,4)&(a,k+2)\\
+	6 & (x,8)& (x,5)\\
+	7 & (k,a)&(k,2)\\
+	8 & $\emptyset$&$\emptyset$\\
+	9 & (b,2)& $\emptyset$\\
+	10 & (x,a+k)& (x,8)(x,5)\\
+	11 & (y,a*b)& $\emptyset$\\
+	12 & (k, k+1) & (k,a)\\
+	13 & $\emptyset$ & $\emptyset$\\
+	exit & $\emptyset$ & $\emptyset$ \\
+	\hline
+	\caption{Tabella Gen e Kill}\\
+\end{longtable}	
+ Nella propagation delle costanti, l'obiettivo principale è determinare quali valori costanti possono essere conosciuti prima di eseguire ogni blocco di base del programma.L'analisi forward si allinea naturalmente con il flusso di esecuzione del programma, dove le variabili e i valori vengono definiti prima di essere utilizzati.
+ 
+ Nell'analisi forward, i risultati per ciascun blocco di base dipendono dagli ingressi provenienti dai blocchi predecessori.
+\pagebreak
+\subsection{Iterazioni dell'algoritmo}
+	\begin{longtable}{| c | c | c | c | c | c | c | c | c |}
+		\hline
+		\textbf{BB} & \multicolumn{2}{|c|}{\textbf{Iterazione 1}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 2}} & 	\multicolumn{2}{|c|}{\textbf{iterazione 3}} & \multicolumn{2}{|c|}{\textbf{iterazione 4}} \\
+		\hline
+		\space & in & out & in & out & in & out & in & out\\
+		\hline
+		Entry & $\emptyset$ & $\mu$ & $\emptyset$ & $\emptyset$ & $\emptyset$ & $\emptyset$ & $\emptyset$ & $\emptyset$ \\
+		\hline
+		1 & $\mu$ & $\mu$ & $\emptyset$ & \parbox{1cm}{\centering\vspace{5pt}(k,2)\vspace{5pt}} & $\emptyset$ & (k,2) & $\emptyset$ & (k,2)\\
+		\hline
+		2 & $\mu$ & $\mu$ & \parbox{1cm}{\centering\vspace{5pt}(k,2)\vspace{5pt}} & (k,2) & (k,2) & (k,2) & (k,2) & (k,2)\\
+		\hline
+		3 & $\mu$ & $\mu$ & (k,2) & \parbox{1cm}{\centering\vspace{5pt} (k,2)\\(a,4)\vspace{5pt}} & (k,2) & \parbox{1cm}{\centering (k,2)\\(a,4)} & (k,2)& \parbox{1cm}{\centering (k,2)\\(a,4)} \\
+		\hline
+		4 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (k,2)\\(a,4)} & \parbox{1cm}{\centering \vspace{5pt}(k,2)\\(a,4) \\ (x,5)\vspace{5pt}} & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)\\ (x,5)}  & \parbox{1cm}{\centering (k,2)\\(a,4)} & \parbox{1cm}{\centering (k,2)\\(a,4)\\ (x,5)} \\
+		\hline
+		5 & $\mu$ & $\mu$ & (k,2) & \parbox{1cm}{\centering\vspace{5pt} (k,2)\\(a,4)\vspace{5pt}}  & (k,2) & \parbox{1cm}{\centering (k,2)\\(a,4)}  & (k,2)& \parbox{1cm}{\centering (k,2)\\(a,4)} \\
+		\hline
+		6 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (k,2)\\(a,4)} & \parbox{1cm}{\centering\vspace{5pt} (k,2)\\(a,4)\\ (x,8)\vspace{5pt}}  & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)\\ (x,8)}  &\parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)\\ (x,8) } \\
+		\hline
+		7 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering\vspace{5pt} (k,2)\\(a,4)\vspace{5pt}}  & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)}  & \parbox{1cm}{\centering (k,2)\\(a,4)} \\
+		\hline
+		8 & $\mu$ & $\mu$ & \parbox{1cm}{\centering\vspace{5pt} (k,2)\\(a,4)\vspace{5pt}}  & \parbox{1cm}{\centering (k,2)\\(a,4)}  & (a,4) & (a,4)  & (a,4)  & (a,4) \\
+		\hline
+		9 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (k,2)\\(a,4)} & \parbox{1cm}{\centering\vspace{5pt} (b,2)\\(k,2)\\(a,4)\vspace{5pt}} & (a,4) & \parbox{1cm}{\centering (a,4)\\(b,2)} & (a,4) & \parbox{1cm}{\centering (a,4)\\(b,2)}\\
+		\hline
+		10 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (b,2)\\(k,4)\\ (a,4)} & \parbox{1cm}{\centering\vspace{5pt} (b,2)\\(k,4)\\ (a,4)\\ (x,8)\vspace{5pt}} & \parbox{1cm}{\centering (a,4)\\(b,2)} & \parbox{1cm}{\centering (a,4)\\(b,2)} & \parbox{1cm}{\centering (a,4)\\(b,2)}  & \parbox{1cm}{\centering (a,4)\\(b,2)} \\
+		\hline
+		11 & $\mu$ & $\mu$ & \parbox{1cm}{\centering \vspace{5pt} (b,2)\\(k,4)\\(a,4)\\(x,8)}  & \parbox{1cm}{\centering \vspace{5pt}  (b,2)\\(k,4)\\ (a,4)\\ (x,8)\\ (y,8)\vspace{5pt}} & \parbox{1cm}{\centering (a,4)\\(b,2)}  & \parbox{1cm}{\centering (a,4)\\(b,2)\\ (y,8)}  & \parbox{1cm}{\centering (a,4)\\(b,2)}  & \parbox{1cm}{\centering (a,4)\\(b,2)\\ (y,8) } \\
+		\hline
+		12 & $\mu$ & $\mu$ & \parbox{1cm}{\centering (b,2)\\(k,4)\\(a,4)\\(x,8)\\ (y,8)} & \parbox{1cm}{\centering \vspace{5pt} (b,2)\\(a,4)\\(x,8)\\(y,8)\\ (k,5)\vspace{5pt}} & \parbox{1cm}{\centering (a,4)\\ (b,2)\\(y,8)}& \parbox{1cm}{\centering (a,4)\\ (b,2)\\(y,8)} &
+		\parbox{1cm}{\centering (a,4)\\ (b,2)\\(y,8)} &\parbox{1cm}{\centering (a,4)\\ (b,2)\\(y,8)}\\
+		\hline
+		13 & $\mu$ & $\mu$ & 
+		\parbox{1cm}{\centering\vspace{5pt} (k,4)\\ (a,4)\vspace{5pt}} &
+		\parbox{1cm}{\centering (k,4)\\(a,4)} &
+		 (a,4)& (a,4) & (a,4) & (a,4) \\
+		\hline
+		Exit& $\mu$ & $\mu$ & 
+		\parbox{1cm}{\centering\vspace{5pt} (k,4)\\ (a,4)\vspace{5pt}} &
+		\parbox{1cm}{\centering (k,4)\\(a,4)} &
+		(a,4)& (a,4) & (a,4) & (a,4) \\
+		\hline
+	\end{longtable}
+\pagebreak
+
+	
+\end{section}
+
+\end{document}
