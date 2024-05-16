@@ -6,127 +6,96 @@
 
 using namespace llvm;
 
-bool isLoopInvariantValue(Value*, Loop &);
-bool isLoopInvariantInstruction(Instruction &I, Loop &L);
+bool isLoopInvariant(Instruction &Inst, Loop &L) {
+    for(auto *opIter = Inst.op_begin(); opIter != Inst.op_end(); ++opIter){
+        Value *op = opIter->get();
+      //se non e' un PHINode
+      if(isa<PHINode>(Inst) || isa<BranchInst>(Inst))
+        return false;
+      //Se non e' una const
+      if (Instruction *arg = dyn_cast<Instruction>(op)) {
+        if (L.contains(arg)){// dichiarato dentro loop
+          if(!isLoopInvariant(*arg,L))
+            return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool dominatesExits(Instruction *inst, DominatorTree &DT, Loop &L) {
+
+    SmallVector<BasicBlock*> exits;
+
+    for (auto *block : L.getBlocks()) {
+      if (block != L.getHeader() && L.isLoopExiting(block))
+        exits.push_back(block);
+    }
+
+    for (auto *exit : exits) {
+      if (!DT.dominates(inst->getParent(), exit))
+        return false;
+    }
+
+  return true;
+}
+
+  bool dominatesUseBlocks(DominatorTree &DT, Instruction *inst){
+    for (auto Iter = inst->user_begin(); Iter != inst->user_end(); ++Iter) {
+      if (!DT.dominates(inst, dyn_cast<Instruction>(*Iter))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 
 PreservedAnalyses LoopWalk::run(Loop &L, LoopAnalysisManager &LAM,
             LoopStandardAnalysisResults &LAR, LPMUpdater &LU) {
   outs() << "\nLOOPPASS INIZIATO...\n"; 
 
-//DA METTERE A POSTO GLI INPUT aRGUMENTS e le istruzion di phi 
-  //TOGLI DAL FILE .ll le direttive optnone
-  //Loop.getHeader.getParent()
-  if (!L.isLoopSimplifyForm())
-  {
-    outs() << "Il Loop non è in forma normale\n";
-    return PreservedAnalyses::all();
-  }
-      // BasicBlock* preheder = L->getLoopPreheader();
-      // if(preheder){
-      //   outs() << "Il loop ha un preheader:\n\nIstruzioni Preheader\n";
-      // }
-      // else
-      //   return false; 
+  DominatorTree &DT = LAR.DT;
+  SmallVector<Instruction*> Invariants;
+  SmallVector<Instruction*> Movable;
 
-  // outs() << "Il Loop è in forma normale, procediamo \n";
-  // BasicBlock *head = L.getHeader();
-  // Function *F = head->getParent();
+  // verificare la forma normalizzata
+  if (L.isLoopSimplifyForm()){
+    outs() << "\nLoop in forma normalizzata\n";
 
-  // //STAMPO IL CFG
-  // outs() << "\n*********IL CFG della funzione : ****************\n";
-  // for( auto iter = F->begin(); iter != F->end(); ++iter)
-  // {
-  //   BasicBlock &BB = *iter;
-  //   outs() << BB << "\n"; 
-  // }
+    // itero sui basic blocks del loop
+    int i = 1;
+    for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI){
+      BasicBlock *BB = *BI;
+      outs() << "\nBasic block n. " << i << ": " << *BB << "\n";
+      i++;
 
-  // outs() << "\n****************************************\n";
+      outs() << "Scrorrendo le istruzioni del BB: \n";
+      for(auto InstIter = BB->begin(); InstIter != BB->end(); ++InstIter){
+        Instruction &Inst = *InstIter;
 
-  //POI STAMPO IL LOOP 
-  outs() << "\n*********IL LOOP: ***********************\n";
-  for(auto iterloop = L.block_begin(); iterloop != L.block_end(); iterloop++)
-  {
-    BasicBlock *BB = *iterloop;
-    for(auto iterInstr=BB->begin(); iterInstr!=BB->end(); iterInstr++)
-    {
-      Instruction &i = *iterInstr;
-      outs() << i << "\n";
-      if(isLoopInvariantInstruction(i, L))
-        outs() << "L'istruzione" << i << "è loop invariant";
-      else
-        outs() << "L'istruzione" << i << "NON è loop invariant";
-
-      outs() << "***************************" << "\n";
+        if(isLoopInvariant(Inst, L)){
+          outs() << Inst << "E' loop invariant " << "\n";
+          Invariants.push_back(&Inst);
+        }
+        else
+          outs() << "Non è loop invariant" <<"\n";
+      }
     }
+
+    for (auto *inst : Invariants)
+    {
+      if (dominatesExits(inst,DT ,L ) && dominatesUseBlocks(DT, inst))
+        Movable.push_back(inst);
+    }
+
+    BasicBlock *preHeader = L.getLoopPreheader();
+    for (auto elem : Movable)
+    {
+      outs()<<"Trovata istruzione movable: "<<*elem<<"\n";
+      elem->moveBefore(&preHeader->back());
+    }
+
   }
-
-  // for(auto BI = L.block_begin(); BI != L.block_end(); ++BI)
-  // {
-  //   BasicBlock *BB = *BI;
-  //   for (auto &i : *BB){
-  //      if(checkInvariance(&L, &i))
-  //       {
-  //         outs() << i << " è loop-invariant\n";
-          
-  //       }
-  //   }
-  // }
-
-
 
    return PreservedAnalyses::all();
 }
-
-
-bool isLoopInvariantInstruction(Instruction &I, Loop &L) {
-    for (auto *iterOperand=I.op_begin();iterOperand!=I.op_end(); iterOperand++)
-    {
-      Value *Operand = *iterOperand;
-      if(isLoopInvariantValue(Operand, L))
-        return true;
-    }
-    return false;
-    
-    // if(dyn_cast<BinaryOperator>(I))
-    // {
-    //   Value* op_right = I->getOperand(1);
-    //   Value* op_left = I->getOperand(0);
-    //   return _isLoopInvariant(L, op_right) && _isLoopInvariant(L, op_left);
-    // }
-    // return false;
-  }
-
-bool isLoopInvariantValue(Value* V, Loop &L) {
-  if(Instruction *inst = dyn_cast<Instruction>(V))
-  {
-    outs() << *inst << "\n";
-    if(!L.contains(inst))
-    {
-      outs() << "L'istruzione sta fuori dal loop\n";
-      return true;
-    }else{
-      outs() << "altra instructions \n";
-      if(isLoopInvariantInstruction(*inst, L))
-        return true;
-      else
-        return false;
-    }
-  }else if (Constant *C = dyn_cast<Constant>(V))
-  {
-    outs() << "costante trovata \n";
-    return true;
-  }
-
-    // if(dyn_cast<Constant>(V) != nullptr)
-    //   return true;
-
-    // Instruction* inst = dyn_cast<Instruction>(V);
-    // if(inst)
-    //   if(!(L->contains(inst)))
-    //     return true;
-    //   else
-    //     return checkInvariance(L, inst);
-
-
-    // return true;
-  }
