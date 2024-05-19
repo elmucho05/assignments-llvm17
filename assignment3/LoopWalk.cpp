@@ -7,69 +7,68 @@
 using namespace llvm;
 
 bool isLoopInvariant(Instruction &Inst, Loop &L) {
-    for(auto *opIter = Inst.op_begin(); opIter != Inst.op_end(); ++opIter){
-        Value *op = opIter->get();
-      //se non e' un PHINode
-      if(isa<PHINode>(Inst) || isa<BranchInst>(Inst))
-        return false;
-      //Se non e' una const
-      if (Instruction *arg = dyn_cast<Instruction>(op)) {
-        if (L.contains(arg)){// dichiarato dentro loop
-          if(!isLoopInvariant(*arg,L))
-            return false;
-        }
+  for(auto *opIter = Inst.op_begin(); opIter != Inst.op_end(); ++opIter){
+      Value *op = opIter->get();
+
+    if(isa<PHINode>(Inst) || isa<BranchInst>(Inst))
+      return false;
+
+    if (Instruction *arg = dyn_cast<Instruction>(op)) {
+      if (L.contains(arg)){
+        if(!isLoopInvariant(*arg,L))
+          return false;
       }
     }
-    return true;
   }
-
-  bool dominatesExits(Instruction *inst, DominatorTree &DT, Loop &L) {
-
-    SmallVector<BasicBlock*> exits;
-
-    for (auto *block : L.getBlocks()) {
-      if (block != L.getHeader() && L.isLoopExiting(block))
-        exits.push_back(block);
-    }
-
-    for (auto *exit : exits) {
-      if (!DT.dominates(inst->getParent(), exit))
-        return false;
-    }
-
   return true;
 }
 
-  bool dominatesUseBlocks(DominatorTree &DT, Instruction *inst){
-    for (auto Iter = inst->user_begin(); Iter != inst->user_end(); ++Iter) {
-      if (!DT.dominates(inst, dyn_cast<Instruction>(*Iter))) {
-        return false;
-      }
-    }
-    return true;
+bool dominatesExits(Instruction *inst, DominatorTree &DT, Loop &L) {
+
+  SmallVector<BasicBlock*> uscite;
+
+  for (auto *block : L.getBlocks()) {
+    if (block != L.getHeader() && L.isLoopExiting(block))
+      uscite.push_back(block);
   }
+
+  for (auto *exit : uscite) {
+    if (!DT.dominates(inst->getParent(), exit))
+      return false;
+  }
+
+return true;
+}
+
+bool dominatesUseBlocks(DominatorTree &DT, Instruction *inst){
+  for (auto Iter = inst->user_begin(); Iter != inst->user_end(); ++Iter) {
+    if (!DT.dominates(inst, dyn_cast<Instruction>(*Iter))) {
+      return false;
+    }
+  }
+  return true;
+}
 
 
 PreservedAnalyses LoopWalk::run(Loop &L, LoopAnalysisManager &LAM,
             LoopStandardAnalysisResults &LAR, LPMUpdater &LU) {
-  outs() << "\nLOOPPASS INIZIATO...\n"; 
+  
+  outs() << "\n********* Inizio del Loop ********...\n"; 
 
   DominatorTree &DT = LAR.DT;
-  SmallVector<Instruction*> Invariants;
-  SmallVector<Instruction*> Movable;
+  SmallVector<Instruction*> invariantInstructions;
+  SmallVector<Instruction*> movableInstructions;
 
-  // verificare la forma normalizzata
   if (L.isLoopSimplifyForm()){
     outs() << "\nLoop in forma normalizzata\n";
 
-    // itero sui basic blocks del loop
-    int i = 1;
+    int i = 1; //counter del bb, solo per controllo output
     for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI){
       BasicBlock *BB = *BI;
       outs() << "\nBasic block n. " << i << ": " << *BB << "\n";
       i++;
 
-      outs() << "Scrorrendo le istruzioni del BB: \n";
+      outs() << "Scrorro le istruzioni del BB: \n";
       for(auto InstIter = BB->begin(); InstIter != BB->end(); ++InstIter){
         Instruction &Inst = *InstIter;
 
@@ -85,11 +84,11 @@ PreservedAnalyses LoopWalk::run(Loop &L, LoopAnalysisManager &LAM,
     for (auto *inst : Invariants)
     {
       if (dominatesExits(inst,DT ,L ) && dominatesUseBlocks(DT, inst))
-        Movable.push_back(inst);
+        movableInstructions.push_back(inst);
     }
 
     BasicBlock *preHeader = L.getLoopPreheader();
-    for (auto elem : Movable)
+    for (auto elem : movableInstructions)
     {
       outs()<<"Trovata istruzione movable: "<<*elem<<"\n";
       elem->moveBefore(&preHeader->back());
