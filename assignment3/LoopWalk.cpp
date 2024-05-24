@@ -74,14 +74,14 @@ PreservedAnalyses LoopWalk::run(Loop &L, LoopAnalysisManager &LAM,
 
         if(isLoopInvariant(Inst, L)){
           outs() << Inst << "E' loop invariant " << "\n";
-          Invariants.push_back(&Inst);
+          invariantInstructions.push_back(&Inst);
         }
         else
           outs() << "Non è loop invariant" <<"\n";
       }
     }
 
-    for (auto *inst : Invariants)
+    for (auto *inst : invariantInstructions)
     {
       if (dominatesExits(inst,DT ,L ) && dominatesUseBlocks(DT, inst))
         movableInstructions.push_back(inst);
